@@ -13,6 +13,7 @@
             {% else %}
             <p>Age: Kitten</p>
   {% endif %}
+  <a href="{% url 'detail' cat.id %}">View {{ cat.name }} details</a>
         </div>
     </div>
   {% endfor %}
