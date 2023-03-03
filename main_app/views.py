@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from .models import Cat
+from django.views.generic.edit import CreateView
 
 #temporary cats for building templates
 # cats = [
@@ -24,3 +25,10 @@ def cats_index(request):
 def cats_detail(request, cat_id):
   cat = Cat.objects.get(id=cat_id)
   return render(request, 'cats/detail.html', { 'cat': cat })
+
+class CatCreate(CreateView):
+  model = Cat
+  #fields attribute is required for a createview
+  fields= '__all__'
+  # fields = ['name', 'breed', 'description', 'age']
+  # success_url = '/cats/{cat_id}'
