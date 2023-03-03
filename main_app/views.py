@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from .models import Cat
-from django.views.generic.edit import CreateView
+from django.views.generic.edit import CreateView, UpdateView, DeleteView
 
 #temporary cats for building templates
 # cats = [
@@ -32,3 +32,11 @@ class CatCreate(CreateView):
   fields= '__all__'
   # fields = ['name', 'breed', 'description', 'age']
   # success_url = '/cats/{cat_id}'
+
+class CatUpdate(UpdateView):
+  model = Cat
+  fields = ['breed', 'description', 'age']
+
+class CatDelete(DeleteView):
+  model = Cat
+  success_url = '/cats/'
