@@ -7,6 +7,10 @@ from .forms import FeedingForm
 import uuid
 import boto3
 from django.conf import settings
+from django.contrib.auth import login
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 
 AWS_ACCESS_KEY = settings.AWS_ACCESS_KEY
 AWS_SECRET_ACCESS_KEY = settings.AWS_SECRET_ACCESS_KEY
@@ -22,10 +26,13 @@ def about(request):
   # Include an .html file extension - unlike when rendering EJS templates
   return render(request, 'about.html')
 
+@login_required
 def cats_index(request):
-  cats = Cat.objects.all()
+  # cats = Cat.objects.all()
+  cats = Cat.objects.filter(user=request.user)
   return render(request, 'cats/index.html', { 'cats': cats })
 
+@login_required
 def cats_detail(request, cat_id):
   cat = Cat.objects.get(id=cat_id)
   id_list = cat.toys.all().values_list('id')
@@ -35,21 +42,25 @@ def cats_detail(request, cat_id):
 
   
 
-class CatCreate(CreateView):
+class CatCreate(LoginRequiredMixin, CreateView):
   model = Cat
   #fields attribute is required for a createview
-  fields= '__all__'
+  fields= ['name', 'breed', 'description', 'age']
   # fields = ['name', 'breed', 'description', 'age']
   # success_url = '/cats/{cat_id}'
+  def form_valid(self, form):
+    form.instance.user = self.request.user
+    return super().form_valid(form)
 
-class CatUpdate(UpdateView):
+class CatUpdate(LoginRequiredMixin, UpdateView):
   model = Cat
   fields = ['breed', 'description', 'age']
 
-class CatDelete(DeleteView):
+class CatDelete(LoginRequiredMixin, DeleteView):
   model = Cat
   success_url = '/cats/'
 
+@login_required
 def add_feeding(request, cat_id):
   form = FeedingForm(request.POST)
   if form.is_valid():
@@ -59,27 +70,29 @@ def add_feeding(request, cat_id):
   return redirect('detail', cat_id=cat_id)
 
 # ToyList
-class ToyList(ListView):
+class ToyList(LoginRequiredMixin, ListView):
   model = Toy
   template_name = 'toys/index.html'
 
   # def get_query(self):
 
+@login_required
 def assoc_toy(request, cat_id, toy_id):
   Cat.objects.get(id=cat_id).toys.add(toy_id)
   return redirect('detail', cat_id=cat_id)
 
+@login_required
 def unassoc_toy(request, cat_id, toy_id):
   Cat.objects.get(id=cat_id).toys.remove(toy_id)
   return redirect('detail', cat_id=cat_id)
 
 # ToyDetail
-class ToyDetail(DetailView):
+class ToyDetail(LoginRequiredMixin, DetailView):
   model = Toy
   template_name = 'toys/detail.html'
 
 # ToyCreate
-class ToyCreate(CreateView):
+class ToyCreate(LoginRequiredMixin, CreateView):
   model = Toy
   fields = ['name', 'color']
   
@@ -88,17 +101,18 @@ class ToyCreate(CreateView):
 
 
 # ToyUpdate
-class ToyUpdate(UpdateView):
+class ToyUpdate(LoginRequiredMixin, UpdateView):
   model = Toy
   fields = ['name', 'color']
 
 
 # ToyDelete
-class ToyDelete(DeleteView):
+class ToyDelete(LoginRequiredMixin, DeleteView):
   model= Toy
   success_url = '/toys/'
 
 # add photos
+@login_required
 def add_photo(request, cat_id):
   #name attribute of our form
   photo_file = request.FILES.get('photo-file', None)
@@ -116,5 +130,16 @@ def add_photo(request, cat_id):
       return redirect('detail', cat_id=cat_id)
   return redirect('detail', cat_id=cat_id)
 
-
-  
+def signup (request):
+  error_message = ''
+  if request.method == 'POST':
+    form = UserCreationForm(request.POST)
+    if form.is_valid():
+      user = form.save()
+      login(request, user)
+      return redirect('index')
+    else:
+      error_message = 'Invalid sign up - try again'
+  form = UserCreationForm()
+  context = {"form": form, 'error_message': error_message}
+  return render(request, 'registration/signup.html', context)
