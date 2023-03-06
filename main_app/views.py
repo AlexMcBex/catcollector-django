@@ -1,16 +1,17 @@
 from django.shortcuts import render, redirect
-from .models import Cat, Toy
+from .models import Cat, Toy, Photo
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.generic import ListView
 from django.views.generic.detail import DetailView
 from .forms import FeedingForm
+import uuid
+import boto3
+from django.conf import settings
 
-#temporary cats for building templates
-# cats = [
-#   {'name': 'Lolo', 'breed': 'tabby', 'description': 'furry little demon', 'age': 3},
-#   {'name': 'Sachi', 'breed': 'calico', 'description': 'gentle and loving', 'age': 2},
-# ]
-# Create your views here.
+AWS_ACCESS_KEY = settings.AWS_ACCESS_KEY
+AWS_SECRET_ACCESS_KEY = settings.AWS_SECRET_ACCESS_KEY
+S3_BUCKET = settings.S3_BUCKET
+S3_BASE_URL = settings.S3_BASE_URL
 
 # Define the home view
 def home(request):
@@ -96,3 +97,24 @@ class ToyUpdate(UpdateView):
 class ToyDelete(DeleteView):
   model= Toy
   success_url = '/toys/'
+
+# add photos
+def add_photo(request, cat_id):
+  #name attribute of our form
+  photo_file = request.FILES.get('photo-file', None)
+  # use conditional to make sure a file is present
+  if photo_file:
+    s3= boto3.client('s3', aws_access_key_id = AWS_ACCESS_KEY, aws_secret_access_key = AWS_SECRET_ACCESS_KEY)
+    key = uuid.uuid4().hex[:6] + photo_file.name[photo_file.name.rfind('.'):]
+    try:
+      s3.upload_fileobj(photo_file, S3_BUCKET, key)
+      url = f"{S3_BASE_URL}{S3_BUCKET}/{key}"
+      photo = Photo(url=url, cat_id=cat_id)
+      photo.save()
+    except Exception as error:
+      print('Error uploading photo')
+      return redirect('detail', cat_id=cat_id)
+  return redirect('detail', cat_id=cat_id)
+
+
+  
